@@ -5,9 +5,129 @@
 
 namespace Memory::Containers {
 
-static const uint64_t s_default_vector_size {10};
 
-// VECTOR
+
+//  ________________________________________________________________________________
+// /--------------------------------------------------------------------------------\
+// |-                                                                              -|
+// |-                                                                              -|
+// |-                              << STACK ARRAY >>                               -|
+// |-                                                                              -|
+// |-                                                                              -|
+// \--------------------------------------------------------------------------------/
+
+
+/*
+ * The stack_array Container is supose to act like a collection of elements 
+ * contiguious in memory (I know its obvious smartass). The memory is allocated in 
+ * the stack and it can be specify how big it should be, in order to optimize space.
+ *
+ */
+
+//////////////////////////////
+// ____  DECLARATION  ____ //
+/////////////////////////////
+
+template <typename T, uint32_t N>
+struct stack_array
+{
+  
+  typedef       T* iterator;
+  typedef const T* const_iterator;
+
+  inline iterator       begin() { return &p_items[0]; }
+  inline iterator       end()   { return &p_items[size]; }
+  inline const_iterator begin() const { return &p_items[0]; }
+  inline const_iterator end()   const { return &p_items[size]; }
+
+  
+  inline const T& operator[](uint32_t index) const;
+  inline       T& operator[](uint32_t index); 
+  inline stack_array&  operator=(const stack_array& other);  
+
+ 
+
+  T p_items[N]; 
+  uint32_t size;
+
+  stack_array();
+  stack_array(stack_array& other);
+   
+
+};
+
+
+//////////////////////////////
+// ____ IMPLEMENTATION ____ //
+/////////////////////////////
+
+template<typename T, uint32_t N>
+stack_array<T, N>::stack_array()
+{
+    //p_items = static_cast<T*>(alloca(N  * sizeof(T)));
+    size = N;
+
+}
+
+template<typename T, uint32_t N>
+stack_array<T, N>::stack_array(stack_array& other)
+{
+    if (size != other.size) { /* DEBUG ASSERT */}
+  
+    for (uint32_t i = 0; i < other.size; i++)
+    {
+      p_items[i] = other.p_items[i];
+    }
+    size = other.size;
+}
+
+
+template <typename T, uint32_t N>
+inline const T& stack_array<T,N>::operator[](uint32_t index) const 
+{
+  if (index < 0 || index >= size) { /* DEBUG TRACE */ }
+  return p_items[index];
+}
+
+
+template <typename T, uint32_t N>
+inline T& stack_array<T, N>::operator[](uint32_t index) 
+{
+  if (index < 0 || index >= size) { /* DEBUG TRACE */ }
+  return p_items[index];
+}
+
+
+template <typename T, uint32_t N>
+inline stack_array<T, N>&  stack_array<T, N>::operator=(const stack_array& other)
+{
+  if (size != other.size ) { /* DEBUG ASSERT */  }
+
+  for(uint32_t i = 0; i < other.size; ++i)
+  {
+     p_items[i] = other.p_items[i]; 
+  }
+  size = other.size;
+  
+  return *this;
+}
+
+// END OF MEMORY::CONTAINER::stack_array<>
+
+
+
+
+//  ________________________________________________________________________________
+// /--------------------------------------------------------------------------------\
+// |-                                                                              -|
+// |-                                                                              -|
+// |-                                 << VECTOR >>                                 -|
+// |-                                                                              -|
+// |-                                                                              -|
+// \--------------------------------------------------------------------------------/
+
+
+
 /*  
  *  The vector Container is a generic array with the ability to change 
  *  size to acomodate new data. 
@@ -15,7 +135,7 @@ static const uint64_t s_default_vector_size {10};
  * ºbut it is likely that you run out of memory way before reaching such
  *  number.
  *
- *  TODO :
+ *  TODO:
  *  - implementation of srinking capabilities
  *  - implementation of policies for srinking and growing
  *  - fix the fuckass std::string implementation god I hate that shit dude
@@ -26,6 +146,8 @@ static const uint64_t s_default_vector_size {10};
 //////////////////////////////
 // ____  DECLARATION  ____ //
 /////////////////////////////
+
+static const uint32_t s_default_vector_size {10};
 
 template <typename T>
 struct vector
@@ -59,8 +181,6 @@ struct vector
   void push_back(T& item);
   void push_back(T&& item);
   void pop_back();
-  void pop_front();
-  void pop_mid();
   void clear();
   void resize(uint32_t newCapacity);
   inline void change_growth_ratio(float newRatio) { growth_ratio = newRatio; }
@@ -326,9 +446,18 @@ void vector<std::string>::resize(uint32_t newCapacity)
 
 }
 
+// END OF MEMORY::CONTAINERS::vector<>  
 
 
-// ARRAY LIST
+//  ________________________________________________________________________________
+// /--------------------------------------------------------------------------------\
+// |-                                                                              -|
+// |-                                                                              -|
+// |-                              << ARRAY LIST >>                                -|
+// |-                                                                              -|
+// |-                                                                              -|
+// \--------------------------------------------------------------------------------/
+
 
 
 static const uint64_t s_default_list_size {100};
