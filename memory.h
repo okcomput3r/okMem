@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <sys/types.h>
 
 namespace Memory::Containers {
 
@@ -180,6 +181,14 @@ static const uint32_t s_default_vector_size{10};
 
 template <typename T> struct vector {
 
+  // Members
+  T *p_items{};
+  float growth_ratio{0.5f};
+  uint32_t size{0};
+  uint32_t capacity{0};
+  uint32_t explicit_padding; // 32 bits -> 4 bytes
+
+  // Iterators
   typedef T *iterator;
   typedef const T *const_iterator;
 
@@ -188,6 +197,7 @@ template <typename T> struct vector {
   inline const_iterator begin() const { return &p_items[0]; }
   inline const_iterator end() const { return &p_items[size]; }
 
+  // Overloaded operators
   inline const T &operator[](uint32_t index) const;
   inline T &operator[](uint32_t index);
   inline vector &operator=(const vector &other);
@@ -201,6 +211,7 @@ template <typename T> struct vector {
 
   ~vector();
 
+  // Methods
   template <typename... Args> T &emplace_back(Args &&...item);
   void push_back(T &item);
   void push_back(T &&item);
@@ -208,14 +219,6 @@ template <typename T> struct vector {
   void clear();
   void resize(uint32_t newCapacity);
   inline void change_growth_ratio(float newRatio) { growth_ratio = newRatio; }
-
-  // Members
-
-  T *p_items{};
-  float growth_ratio{0.5f};
-  uint32_t size{0};
-  uint32_t capacity{0};
-  uint32_t explicit_padding; // 32 bits -> 4
 };
 
 //////////////////////////////
@@ -418,7 +421,7 @@ template <> void vector<std::string>::resize(uint32_t newCapacity) {
 // /--------------------------------------------------------------------------------\
 // |
 // |
-// |                              << ARRAY LIST >>
+// |                              << FLAT LIST >>
 // |
 // |
 // \--------------------------------------------------------------------------------/
@@ -451,21 +454,27 @@ template <> void vector<std::string>::resize(uint32_t newCapacity) {
  * of O(n * sizeof(T) + n * 8) on most 64 bit machines, given that a pointer
  * should be 8 bits long.
  *
+ * CHANGE -> instead of a full vector only for unused nodes, i implemented a
+ * dirty bit in the node to indicate if its being used.
+ *
+ * TODO:
+ *  - Implementation of all the methods and connstructors
+ *
  */
 
-static const uint64_t s_default_list_size{100};
+static const uint32_t s_default_list_size{100};
 
 template <typename T> struct list_node {
+  T value{};
   list_node *p_next{nullptr};
   list_node *p_previous{nullptr};
-  T value{};
 
   /*
    * 8 bit mask that represets:
    *  [0] -> hasNext
    *  [1] -> hasPrevious
-   *  [2] ->
-   *  [3] ->
+   *  [2] -> sticky Bit
+   *  [3] -> dirty bit (set to 1 when the node is not being used)
    *  [4] ->
    *  [5] ->
    *  [6] ->
@@ -498,11 +507,15 @@ template <typename T> struct list_node {
 
 template <typename T> struct flat_list {
 
-  vector<list_node<T>> p_nodeList{};
-  vector<list_node<T> *> p_freeNodeList{};
+  // Members
 
-  uint64_t size{0};
-  uint64_t capacity{0};
+  vector<list_node<T>> p_nodeList{};
+  list_node<T> *p_root{};
+
+  uint32_t size{0};
+  uint32_t capacity{0};
+
+  // Iterators
 
   typedef T *iterator;
   typedef const T *const_iterator;
@@ -512,7 +525,7 @@ template <typename T> struct flat_list {
   inline const_iterator begin() const { return &p_nodeList[0]; }
   inline const_iterator end() const { return &p_nodeList[p_nodeList.size]; }
 
-  // Default Constructor
+  // Constructors / destructor
   flat_list();
   flat_list(uint32_t item_count);
 
@@ -537,6 +550,102 @@ template <typename T> flat_list<T>::flat_list(uint32_t item_count) {}
 
 template <typename T> void flat_list<T>::add(T val) {}
 template <typename T> void flat_list<T>::add(list_node<T> node) {}
+
+// end of MEMORY::CONTAINERS::flat_list<>
+
+//  ________________________________________________________________________________
+// /--------------------------------------------------------------------------------\
+// |
+// |
+// |                              << FRT TREE >>
+// |
+// |
+// \--------------------------------------------------------------------------------/
+
+/***
+ *
+ *  FRT (Fast Retrieve & Traverse) tree is a tree like structure designed for UI
+ *
+ *
+ *
+ *
+ *
+ *
+ */
+
+const uint32_t s_max_node_childs = 10;
+const uint32_t s_default_tree_size = 100;
+
+template <typename T> struct tree_node {
+
+  T value{};
+  stack_array<tree_node *, s_max_node_childs> p_childs{};
+  uint32_t node_id{0};
+  uint32_t childCount{0};
+  /*
+   * 8 bit mask that represets:
+   *  [0] -> haschilds
+   *  [1] -> dirty bit
+   *  [2] ->
+   *  [3] ->
+   *  [4] ->
+   *  [5] ->
+   *  [6] ->
+   *  [7] ->
+   *
+   */
+  uint8_t state_mask{0};
+
+  // Default Constructor
+  tree_node(T &_value) {
+    value = _value;
+    childCount = 0;
+    node_id = 0;
+  }
+  ~tree_node() {}
+
+  // shifts the value 8 bits to get the correct bit
+  inline bool hasChilds() { return state_mask & (1); }
+};
+
+template <typename T> struct frt_tree {
+
+  vector<tree_node<T>> p_buffer{};
+  tree_node<T> *p_root{nullptr};
+
+  // Iterators
+
+  typedef T *iterator;
+  typedef const T *const_iterator;
+
+  inline iterator begin() { return &p_buffer[0]; }
+  inline iterator end() { return &p_buffer[p_buffer.size]; }
+  inline const_iterator begin() const { return &p_buffer[0]; }
+  inline const_iterator end() const { return &p_buffer[p_buffer.size]; }
+
+  frt_tree();
+  frt_tree(uint32_t init_size);
+
+  ~frt_tree();
+
+  void addNode(T &item, tree_node<T> &parent);
+  void addNode(tree_node<T> &node, tree_node<T> &parent);
+
+  tree_node<T> &retrieveNode(/* ID? */);
+};
+
+template <typename T> frt_tree<T>::frt_tree() {
+  p_buffer.resize(s_default_tree_size);
+}
+
+template <typename T> frt_tree<T>::~frt_tree() {}
+
+template <typename T>
+void frt_tree<T>::addNode(T &item, tree_node<T> &parent) {}
+
+template <typename T> tree_node<T> &frt_tree<T>::retrieveNode(/* ID */) {}
+
+// end of MEMORY::CONTAINERS::frt_tree<>
 
 } // namespace Memory::Containers
 
