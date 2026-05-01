@@ -7,7 +7,6 @@ namespace Memory::Containers {
 
 //  ________________________________________________________________________________
 // /--------------------------------------------------------------------------------\
-<<<<<<< HEAD
 // |- -|
 // |- -|
 // |-                              << STACK ARRAY >> -|
@@ -15,24 +14,11 @@ namespace Memory::Containers {
 // |- -|
 // \--------------------------------------------------------------------------------/
 
-/*
- * The stack_array Container is supose to act like a collection of elements
- * contiguious in memory (I know its obvious smartass). The memory is allocated
- * in the stack and it can be specify how big it should be, in order to optimize
- * space.
-=======
-// |-                                                                              -|
-// |-                              << STACK ARRAY >>                               -|
-// |-                                                                              -|
-// \--------------------------------------------------------------------------------/
-
-
 /***
  *
- * The stack_array Container is supose to act like a collection of elements 
- * contiguious in memory. The memory is allocated in the stack and it can 
+ * The stack_array Container is supose to act like a collection of elements
+ * contiguious in memory. The memory is allocated in the stack and it can
  * be specify how big it should be, in order to optimize space.
->>>>>>> 9eac27e (array implementation)
  *
  */
 
@@ -65,10 +51,7 @@ template <typename T, uint32_t N> struct stack_array {
 // ____ IMPLEMENTATION ____ //
 /////////////////////////////
 
-template <typename T, uint32_t N> stack_array<T, N>::stack_array() {
-  // p_items = static_cast<T*>(alloca(N  * sizeof(T)));
-  size = N;
-}
+template <typename T, uint32_t N> stack_array<T, N>::stack_array() { size = N; }
 
 template <typename T, uint32_t N>
 stack_array<T, N>::stack_array(stack_array &other) {
@@ -113,7 +96,6 @@ stack_array<T, N>::operator=(const stack_array &other) {
 
 //  ________________________________________________________________________________
 // /--------------------------------------------------------------------------------\
-<<<<<<< HEAD
 // |- -|
 // |- -|
 // |-                                 << VECTOR >> -|
@@ -121,45 +103,39 @@ stack_array<T, N>::operator=(const stack_array &other) {
 // |- -|
 // \--------------------------------------------------------------------------------/
 
-/*
+/***
+ *
  *  The vector Container is a generic array with the ability to change
  *  size to acomodate new data.
-=======
-// |-                                                                              -|
-// |-                                 << VECTOR >>                                 -|
-// |-                                                                              -|
-// \--------------------------------------------------------------------------------/
-
-
-
-/*** 
  *
- *  The vector Container is a generic array with the ability to change 
- *  size to acomodate new data. 
->>>>>>> 9eac27e (array implementation)
  *  The maximum size of this array is 2^32 = 4.294.967.296 (~4.3 billion items)
- * ºbut it is likely that you run out of memory way before reaching such
+ *  but it is likely that you run out of memory way before reaching such
  *  number.
  *
  *  Usage:
  *
  *    -> There are two ways to create a vector:
- *        1. Calling the defalut constructor, wich allocates <s_default_vector_size> elements into 
- *           the vector.
+ *        1. Calling the defalut constructor, wich allocates
+ *        <s_default_vector_size> elements into the vector
  *           ej.. vector<int> default_vec {};
  *
- *        2. Calling the constructor and specifying the number of elements that needs allocation.
+ *        2. Calling the constructor and specifying the number of elements that
+needs allocation.
  *           ej.. vector<int> custom_vec {10}; <-- this allocates 10 ints;
  *
  *    ->  To push an item into the array, there are two ways:
- *        1. By calling the push_back() function, witchs moves (if posible) the element into the
+ *        1. By calling the push_back() function, witchs moves (if posible) the
+element into the
  *           next position of the array.
  *
- *        2. By calling the emplace_back() function, witchs creates the object inside the desired
- *           position of the vector, thus avoiding an extra construction and posible memory allocation.
- *           To call this function, you need to give to the function the parameters required to 
+ *        2. By calling the emplace_back() function, witchs creates the object
+inside the desired
+ *           position of the vector, thus avoiding an extra construction and
+posible memory allocation.
+ *           To call this function, you need to give to the function the
+parameters required to
  *           create that structure.
- *           ej.. 
+ *           ej..
  *
  *            struct int&float
  *            {
@@ -173,15 +149,18 @@ stack_array<T, N>::operator=(const stack_array &other) {
  *            int main()
  *            {
  *                vector<int&float> newVec {}
- * 
+ *
  *                // push_back
- *                newVec.push_back(int&float(1, 0.0f)) <-- creates the object and then moves it to the vector
+ *                newVec.push_back(int&float(1, 0.0f)) <-- creates the object
+and then moves it to the vector
  *
  *               // emplace_back
- *                newVec.emplace_back(1, 0.0f);        <-- passes the argument to the vector directly
+ *                newVec.emplace_back(1, 0.0f);        <-- passes the argument
+to the vector directly
  *            }
  *
- *    ->  By default, the vector grows half its size each time it needs to resize, this can be changed
+ *    ->  By default, the vector grows half its size each time it needs to
+resize, this can be changed
  *        by calling the function change_growth_ratio(float newRatio).
  *
  *  TODO:
@@ -437,58 +416,50 @@ template <> void vector<std::string>::resize(uint32_t newCapacity) {
 
 //  ________________________________________________________________________________
 // /--------------------------------------------------------------------------------\
-<<<<<<< HEAD
-// |- -|
-// |- -|
-// |-                              << ARRAY LIST >> -|
-// |- -|
-// |- -|
-// \--------------------------------------------------------------------------------/
-
-static const uint64_t s_default_list_size{100};
-=======
-// |-                                                                              -|
-// |-                              << FLAT LIST >>                                 -|
-// |-                                                                              -|
+// |
+// |
+// |                              << ARRAY LIST >>
+// |
+// |
 // \--------------------------------------------------------------------------------/
 
 /***
  *
- *  flat_list is (suposedly) an Implementation of a linked list, where all its nodes 
- *  are contiguious in memory. 
- *  This approach eliminates the venefit of disperse memory allocation, in favor of a
- *  faster iteration thought its nodes. Hopefully, if the implementation makes sense
- *  and in the end is done right, this structure is suposed to serve as fundation to 
- *  build tools that allows for fast herachy trees transversation, meant for real time 
- *  applications.
+ *  flat_list is (suposedly) an Implementation of a linked list, where all its
+ * nodes are contiguious in memory. This approach eliminates the venefit of
+ * disperse memory allocation, in favor of a faster iteration thought its nodes.
+ * Hopefully, if the implementation makes sense and in the end is done right,
+ * this structure is suposed to serve as fundation to build tools that allows
+ * for fast herachy trees transversation, meant for real time applications.
  *
  *  Now, in my head, this structure needs to acomplish a coupple of things:
  *    -> fast Addition and Deleting : O(1)
  *    -> optimized iteration throught the container : contiguious memory O(n)
- * 
- *  If it gets lucky, we might even get SIMD instrucctions hanging arround, but probably not.
  *
- *  The downside to this trade is that, unlike in a linked list where, when a node is 
- *  removed, the memory management is usually trivial, with this structure we cannot
- *  free the memory of a single node, so we are left with an empty space in between nodes,
- *  wich would lead to internal fragmentation over time.
- *  To mitigate this, all the addresses to the deleted nodes will be stored into an auxiliar
- *  buffer, so that when a new node is needed, an existing allocated memory address will be 
- *  used.
- *  Sadly, this comes as a space penalty, where as the spatial cost of a linked list would come 
- *  as O(n * sizeof(T)), here given our duplicate vector, this will leave us with a wors case 
- *  scenario of O(n * sizeof(T) + n * 8) on most 64 bit machines, given that a pointer should
- *  be 8 bits long.
+ *  If it gets lucky, we might even get SIMD instrucctions hanging arround, but
+ * probably not.
+ *
+ *  The downside to this trade is that, unlike in a linked list where, when a
+ * node is removed, the memory management is usually trivial, with this
+ * structure we cannot free the memory of a single node, so we are left with an
+ * empty space in between nodes, wich would lead to internal fragmentation over
+ * time. To mitigate this, all the addresses to the deleted nodes will be stored
+ * into an auxiliar buffer, so that when a new node is needed, an existing
+ * allocated memory address will be used. Sadly, this comes as a space penalty,
+ * where as the spatial cost of a linked list would come as O(n * sizeof(T)),
+ * here given our duplicate vector, this will leave us with a wors case scenario
+ * of O(n * sizeof(T) + n * 8) on most 64 bit machines, given that a pointer
+ * should be 8 bits long.
  *
  */
->>>>>>> 9eac27e (array implementation)
 
-template <typename T> struct ListNode {
-  ListNode *p_next{nullptr};
-  ListNode *p_previous{nullptr};
+static const uint64_t s_default_list_size{100};
+
+template <typename T> struct list_node {
+  list_node *p_next{nullptr};
+  list_node *p_previous{nullptr};
   T value{};
 
-<<<<<<< HEAD
   /*
    * 8 bit mask that represets:
    *  [0] -> hasNext
@@ -504,42 +475,16 @@ template <typename T> struct ListNode {
   uint8_t state_mask{0};
 
   // Default Constructor
-  ListNode(T _value) { value = _value; }
+  list_node(T _value) { value = _value; }
 
-  ListNode(T _value, ListNode *next) {
+  list_node(T _value, list_node *next) {
     value = _value;
-=======
-static const uint64_t s_default_list_size {10};
-
-template <typename T>
-struct list_node
-{
-  list_node *p_next     {nullptr};
-  list_node *p_previous {nullptr};
-  T value {};
-
-  // Default Constructor
-  list_node(T _value)
-  {
-    value = _value;
-  }
-
-  list_node(T _value, list_node *next)
-  {
-    value  = _value;
->>>>>>> 9eac27e (array implementation)
     p_next = next;
     state_mask |= (1);
   }
 
-<<<<<<< HEAD
-  ListNode(T _value, ListNode *previous, ListNode *next) {
+  list_node(T _value, list_node *previous, list_node *next) {
     value = _value;
-=======
-  list_node(T _value, list_node *previous, list_node *next)
-  {
-    value      = _value;
->>>>>>> 9eac27e (array implementation)
     p_previous = previous;
     p_next = next;
     state_mask |= (1);
@@ -551,10 +496,10 @@ struct list_node
   inline bool hasPrevious() { return state_mask & (1 << 1); }
 };
 
-<<<<<<< HEAD
-template <typename T> struct arrayList {
+template <typename T> struct flat_list {
 
-  ListNode<T> *p_list{};
+  vector<list_node<T>> p_nodeList{};
+  vector<list_node<T> *> p_freeNodeList{};
 
   uint64_t size{0};
   uint64_t capacity{0};
@@ -562,113 +507,36 @@ template <typename T> struct arrayList {
   typedef T *iterator;
   typedef const T *const_iterator;
 
-  inline iterator begin() { return &p_list[0]; }
-  inline iterator end() { return &p_list[size - 1]; }
-  inline const_iterator begin() const { return &p_list[0]; }
-  inline const_iterator end() const { return &p_list[size - 1]; }
-=======
-template <typename T>
-struct flat_list
-{
-
-
-
-  typedef T* iterator;
-  typedef const T* const_iterator;
-
   inline iterator begin() { return &p_nodeList[0]; }
-  inline iterator end()   { return &p_nodeList[p_nodeList.size]; }
+  inline iterator end() { return &p_nodeList[p_nodeList.size]; }
   inline const_iterator begin() const { return &p_nodeList[0]; }
-  inline const_iterator end()   const { return &p_nodeList[p_nodeList.size]; }
->>>>>>> 9eac27e (array implementation)
+  inline const_iterator end() const { return &p_nodeList[p_nodeList.size]; }
 
   // Default Constructor
   flat_list();
   flat_list(uint32_t item_count);
-  
+
   ~flat_list();
 
   // Methods
-
-<<<<<<< HEAD
-  uint8_t add(T value);
-  uint8_t remove(T value);
-  uint8_t resize();
-=======
   void add(T value);
   void add(list_node<T> node);
   T remove(T value);
   void clear();
 
-  inline const bool empty()    { return p_nodeList.size == 0 ? true : false; }
-  inline const uint32_t size() { return p_nodeList.size; }
-
-  vector<list_node<T>>  p_nodeList {};
-  vector<list_node<T>*> p_freeNodeList {};
-
->>>>>>> 9eac27e (array implementation)
+  inline const bool empty() { return p_nodeList.size == 0 ? true : false; }
 };
 
 //////////////////////////////
 // ____ IMPLEMENTATION ____ //
 /////////////////////////////
 
-template <typename T> arrayList<T>::arrayList() {
+template <typename T> flat_list<T>::flat_list() {}
 
-<<<<<<< HEAD
-  p_list = static_cast<ListNode<T> *>(
-      ::operator new(sizeof(ListNode<T>) * s_default_list_size));
-  size = 0;
-  capacity = s_default_list_size;
-}
+template <typename T> flat_list<T>::flat_list(uint32_t item_count) {}
 
-template <typename T> arrayList<T>::arrayList(uint64_t item_count) {
-=======
-template <typename T>
-flat_list<T>::flat_list(){
-
-    p_nodeList.resize(s_default_list_size);
-    p_freeNodeList.resize(s_default_list_size / 2);
-     
-
-}
-
-template <typename T>
-flat_list<T>::flat_list(uint32_t item_count){
-
-    p_nodeList.resize(item_count);
-    p_freeNodeList.resize(item_count/2);
->>>>>>> 9eac27e (array implementation)
-
-  p_list = static_cast<ListNode<T> *>(
-      ::operator new(sizeof(ListNode<T>) * item_count));
-  size = 0;
-  capacity = item_count;
-}
-
-<<<<<<< HEAD
-template <typename T> uint8_t arrayList<T>::add(T val) {
-
-  ++size;
-  if (capacity <= size)
-    arrayList<T>::resize();
-=======
-template <typename T>
-flat_list<T>::~flat_list()
-{
-
-}
-
-template <typename T>
-void flat_list<T>::add(T value)
-{
-
-
-
-
-
->>>>>>> 9eac27e (array implementation)
-}
+template <typename T> void flat_list<T>::add(T val) {}
+template <typename T> void flat_list<T>::add(list_node<T> node) {}
 
 } // namespace Memory::Containers
 
