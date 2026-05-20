@@ -37,8 +37,8 @@ template <typename T, uint32_t N> struct stack_array {
   inline const_iterator begin() const { return &p_items[0]; }
   inline const_iterator end()   const { return &p_items[size]; }
 
-  inline const T &operator[](uint32_t index) const;
-  inline T &operator[](uint32_t index);
+  inline T           &operator[](uint32_t index);
+  inline const T     &operator[](uint32_t index) const;
   inline stack_array &operator=(const stack_array &other);
 
   T p_items[N];
@@ -52,7 +52,8 @@ template <typename T, uint32_t N> struct stack_array {
 // ____ IMPLEMENTATION ____ //
 /////////////////////////////
 
-template <typename T, uint32_t N> stack_array<T, N>::stack_array() { size = N; }
+template <typename T, uint32_t N> 
+stack_array<T, N>::stack_array() { size = N; }
 
 template <typename T, uint32_t N>
 stack_array<T, N>::stack_array(stack_array &other) {
@@ -67,23 +68,19 @@ stack_array<T, N>::stack_array(stack_array &other) {
 
 template <typename T, uint32_t N>
 inline const T &stack_array<T, N>::operator[](uint32_t index) const {
-  if (index < 0 || index >= size) { /* DEBUG TRACE */
-  }
+  if (index < 0 || index >= size) { /* DEBUG TRACE */ }
   return p_items[index];
 }
 
 template <typename T, uint32_t N>
 inline T &stack_array<T, N>::operator[](uint32_t index) {
-  if (index < 0 || index >= size) { /* DEBUG TRACE */
-  }
+  if (index < 0 || index >= size) { /* DEBUG TRACE */ }
   return p_items[index];
 }
 
 template <typename T, uint32_t N>
-inline stack_array<T, N> &
-stack_array<T, N>::operator=(const stack_array &other) {
-  if (size != other.size) { /* DEBUG ASSERT */
-  }
+inline stack_array<T, N> & stack_array<T, N>::operator=(const stack_array &other) {
+  if (size != other.size) { /* DEBUG ASSERT */ }
 
   for (uint32_t i = 0; i < other.size; ++i) {
     p_items[i] = other.p_items[i];
@@ -219,6 +216,8 @@ template <typename T> struct vector {
   void clear();
   void resize(uint32_t newCapacity);
   inline void change_growth_ratio(float newRatio) { growth_ratio = newRatio; }
+  inline bool is_empty() { return size == 0; } // returns size of the vector 
+  inline uint32_t top() { return size-1;}      // returns the position of the last element in the vector 
 };
 
 //////////////////////////////
@@ -430,7 +429,7 @@ void vector<std::string>::resize(uint32_t newCapacity) {
 
 /***
  *
- *  flat_list is (suposedly) an Implementation of a linked list, where all its
+ * flat_list is (suposedly) an Implementation of a double linked list, where all its
  * nodes are contiguious in memory. This approach eliminates the venefit of
  * disperse memory allocation, in favor of a faster iteration thought its nodes.
  * Hopefully, if the implementation makes sense and in the end is done right,
@@ -441,10 +440,10 @@ void vector<std::string>::resize(uint32_t newCapacity) {
  *    -> fast Addition and Deleting : O(1)
  *    -> optimized iteration throught the container : contiguious memory O(n)
  *
- *  If it gets lucky, we might even get SIMD instrucctions hanging arround, but
+ * If I get lucky, we might even get SIMD instrucctions hanging arround, but
  * probably not.
  *
- *  The downside to this trade is that, unlike in a linked list where, when a
+ * The downside to this trade is that, unlike in a linked list where, when a
  * node is removed, the memory management is usually trivial, with this
  * structure we cannot free the memory of a single node, so we are left with an
  * empty space in between nodes, wich would lead to internal fragmentation over
@@ -457,7 +456,8 @@ void vector<std::string>::resize(uint32_t newCapacity) {
  * should be 8 bits long.
  *
  * CHANGE -> instead of a full vector only for unused nodes, i implemented a
- * dirty bit in the node to indicate if its being used.
+ * dirty bit in the node to indicate if its being used. <- THIS WOULDNT WORK because
+ * addition of a new node would be O(n) DUMBASSS
  *
  * TODO:
  *  - Implementation of all the methods and connstructors
@@ -465,94 +465,223 @@ void vector<std::string>::resize(uint32_t newCapacity) {
  */
 
 static const uint32_t s_default_list_size{100};
+static const uint32_t s_default_freeSlots_size{10};
 
-template <typename T> 
-struct list_node {
-  T value   {};
-  list_node *p_next     {nullptr};
-  list_node *p_previous {nullptr};
-
+template <typename T> struct list_node {
+  
+  T value           { };
+  
   /*
    * 8 bit mask that represets:
    *  [0] -> hasNext
    *  [1] -> hasPrevious
-   *  [2] -> sticky Bit
-   *  [3] -> dirty bit (set to 1 when the node is not being used)
-   *  [4] ->
-   *  [5] ->
-   *  [6] ->
-   *  [7] ->
+   *  [2] -> free
+   *  [3] -> free
+   *  [4] -> free
+   *  [5] -> free
+   *  [6] -> free
+   *  [7] -> free
    *
    */
-  uint8_t state_mask  {0};
+  uint8_t state_mask {0};
+  
+  uint32_t next      {0};
+  uint32_t previous  {0};
 
+  
   // Default Constructor
-  list_node(T _value) { value = _value; }
-
-  list_node(T _value, list_node *next) {
-    value       = _value;
-    p_next      = next;
-    state_mask |= (1);
-  }
-
-  list_node(T _value, list_node *previous, list_node *next) {
+  list_node(T &_value) { value = _value; }
+  
+  list_node(T &_value, uint32_t &_previous) {
     value      = _value;
-    p_previous = previous;
-    p_next     = next;
+    previous   = _previous;
+    state_mask |= (1 << 1);
+  }
+  
+
+  list_node(T &_value, uint32_t &_previous, uint32_t &_next) {
+    value      = _value;
+    previous   = _previous;
+    next       = _next;
     state_mask |= (1);
     state_mask |= (1 << 1);
   }
 
+
   // shifts the value 8 bits to get the correct bit
-  inline bool hasNext()     { return state_mask & (1); }
-  inline bool hasPrevious() { return state_mask & (1 << 1); }
+  inline bool has_next()     { return state_mask & (1); }
+  inline bool has_previous() { return state_mask & (1 << 1); }
+  inline void set_next(bool state)     { state == true ? state_mask |= (1) : state_mask |= (0);}
+  inline void set_previous(bool state) { state == true ? state_mask |= (1 << 1) : state_mask |= (0 << 1); }
+
 };
 
 template <typename T> struct flat_list {
 
   // Members
 
-  vector<list_node<T>> p_nodeList{};
-  list_node<T>         *p_root{};
-
-  uint32_t size     {0};
-  uint32_t capacity {0};
-
+  vector<list_node<T>> bufferList {};
+  vector<uint32_t>     freeNodes  {}; // buffer that contains all the indices of the available nodes
+  uint32_t i_root   {0};              // index of the first element in the list
+  uint32_t i_top    {0};              // index of the last element in the list
+  uint32_t m_size   {0};              // ammount of active nodes 
+ 
   // Iterators
 
   typedef T *iterator;
   typedef const T *const_iterator;
 
-  inline iterator begin() { return &p_nodeList[0]; }
-  inline iterator end()   { return &p_nodeList[p_nodeList.size]; }
-  inline const_iterator begin() const { return &p_nodeList[0]; }
-  inline const_iterator end()   const { return &p_nodeList[p_nodeList.size]; }
+  //inline iterator begin() { return &p_nodeList[0]; }
+  //inline iterator end()   { return &p_nodeList[p_nodeList.size]; }
+  //inline const_iterator begin() const { return &p_nodeList[0]; }
+  //inline const_iterator end()   const { return &p_nodeList[p_nodeList.size]; }
 
   // Constructors / destructor
+
   flat_list();
   flat_list(uint32_t item_count);
 
-  ~flat_list();
+  ~flat_list() = default;
 
   // Methods
-  void add(T value);
-  void add(list_node<T> node);
-  T remove(T value);
-  void clear();
 
-  inline const bool empty() { return p_nodeList.size == 0 ? true : false; }
+  void add(T  &value);
+  void add(T &&value);
+  void add(list_node<T> &node);
+  
+  T remove(T value);
+  
+  void clear();
+  
+  list_node<T>& retrieve_node(uint32_t index);
+  list_node<T>& get_root();
+
+  inline const bool is_empty() { return m_size == 0; }
+  inline const uint32_t size() { return m_size; }
 };
 
 //////////////////////////////
 // ____ IMPLEMENTATION ____ //
 /////////////////////////////
 
-template <typename T> flat_list<T>::flat_list() {}
+template <typename T> 
+flat_list<T>::flat_list() {
+  
+  bufferList.resize(s_default_list_size);
+  freeNodes.resize(s_default_freeSlots_size);
+  m_size = 0; 
 
-template <typename T> flat_list<T>::flat_list(uint32_t item_count) {}
+}
 
-template <typename T> void flat_list<T>::add(T val) {}
-template <typename T> void flat_list<T>::add(list_node<T> node) {}
+template <typename T> 
+flat_list<T>::flat_list(uint32_t item_count) {
+
+  bufferList.resize(item_count);
+  freeNodes.resize(s_default_freeSlots_size);
+  m_size = 0;
+
+}
+
+template <typename T> 
+void flat_list<T>::add(T &val) {
+  
+  // if a free node is available we reuse it
+  if(!freeNodes.is_empty()){
+
+    list_node<T> &newNode = bufferList[freeNodes[freeNodes.size]]; // Get buffer slot from index inside the freeNodes list 
+    newNode.value = val;
+    newNode.previous = i_top;
+    newNode.next  = 0;
+    newNode.set_next(false);  // set node bitmask to show that it has no next node
+    newNode.set_previous(true);
+
+    i_top = freeNodes.size;   // update top node
+    
+    bufferList.pop_back();
+    m_size++;
+    return;
+  }
+
+  // first element case
+  if (is_empty()) {
+    
+    bufferList.emplace_back(val); 
+    //bufferList[bufferList.size] = list_node {val}; // bufferList.size is supposed to be 0 because the buffer is empty
+    std::cout << "new node in position: " << bufferList.size << "with value: " << val <<std::endl;
+    i_root = bufferList.size;
+    i_top  = bufferList.size;
+    m_size++;
+  }
+  else {
+
+    bufferList.emplace_back(val, i_top); // emplace new node into the buffer
+
+    list_node<T>& topNode = retrieve_node(i_top);
+    topNode.next = bufferList.size;
+    topNode.set_next(true);
+    
+    i_top = bufferList.size;
+    m_size++;
+  }
+  
+}
+
+template <typename T> 
+void flat_list<T>::add(T &&val){
+
+  // if a free node is available we reuse it
+  if(!freeNodes.is_empty()){
+
+    list_node<T> &newNode = bufferList[freeNodes[freeNodes.size]]; // Get buffer slot from index inside the freeNodes list 
+    newNode.value = val;
+    newNode.previous = i_top;
+    newNode.next  = 0;
+    newNode.set_next(false);  // set node bitmask to show that it has no next node
+    newNode.set_previous(true);
+
+    i_top = freeNodes.size;   // update top node
+    
+    bufferList.pop_back();
+    m_size++;
+    return;
+  }
+
+  // first element case
+  if (is_empty()) {
+    
+    bufferList.emplace_back(val);
+    i_root = bufferList.top();
+    i_top  = bufferList.top();
+
+    m_size++;
+  }
+  else {
+ 
+    bufferList.emplace_back(val, i_top); // emplace new node into the buffer 
+    
+    list_node<T>& topNode = retrieve_node(i_top);
+    topNode.next = bufferList.top(); 
+    topNode.set_next(true);
+    i_top = bufferList.top();
+
+    m_size++;
+  }
+}
+
+template <typename T>
+void flat_list<T>::add(list_node<T> &node) {}
+
+template <typename T>
+list_node<T>& flat_list<T>::retrieve_node(uint32_t index) {
+  if (index < 0 || index > bufferList.size) { /* ASSERT */ } 
+  return bufferList[index];
+}
+
+template <typename T>
+list_node<T>& flat_list<T>::get_root()
+{
+  return retrieve_node(i_root);
+}
 
 // end of MEMORY::CONTAINERS::flat_list<>
 
@@ -572,12 +701,13 @@ template <typename T> void flat_list<T>::add(list_node<T> node) {}
  *
  *
  *
- *
+ *  TODO:
+ *  - everything lol
  *
  */
 
-const uint32_t s_max_node_childs = 10;
-const uint32_t s_default_tree_size = 100;
+const uint32_t s_max_node_childs   {10};
+const uint32_t s_default_tree_size {100};
 
 template <typename T> struct tree_node {
 
@@ -613,18 +743,18 @@ template <typename T> struct tree_node {
 
 template <typename T> struct frt_tree {
 
-  vector<tree_node<T>> p_buffer{};
-  tree_node<T> *p_root{nullptr};
+  vector<tree_node<T>> p_buffer {};
+  tree_node<T>        *p_root   {nullptr};
 
   // Iterators
 
-  typedef T *iterator;
+  typedef T       *iterator;
   typedef const T *const_iterator;
 
   inline iterator begin() { return &p_buffer[0]; }
-  inline iterator end() { return &p_buffer[p_buffer.size]; }
+  inline iterator end()   { return &p_buffer[p_buffer.size]; }
   inline const_iterator begin() const { return &p_buffer[0]; }
-  inline const_iterator end() const { return &p_buffer[p_buffer.size]; }
+  inline const_iterator end()   const { return &p_buffer[p_buffer.size]; }
 
   frt_tree();
   frt_tree(uint32_t init_size);
