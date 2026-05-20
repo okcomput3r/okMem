@@ -29,13 +29,13 @@ namespace Memory::Containers {
 
 template <typename T, uint32_t N> struct stack_array {
 
-  typedef T *iterator;
+  typedef T       *iterator;
   typedef const T *const_iterator;
 
   inline iterator begin() { return &p_items[0]; }
-  inline iterator end() { return &p_items[size]; }
+  inline iterator end()   { return &p_items[size]; }
   inline const_iterator begin() const { return &p_items[0]; }
-  inline const_iterator end() const { return &p_items[size]; }
+  inline const_iterator end()   const { return &p_items[size]; }
 
   inline const T &operator[](uint32_t index) const;
   inline T &operator[](uint32_t index);
@@ -337,8 +337,7 @@ template <typename T> void vector<T>::clear() {
 
 template <typename T>
 inline const T &vector<T>::operator[](uint32_t index) const {
-  if (index >= size || index < 0) { /*DEBUG TRACE*/
-  }
+  if (index >= size || index < 0) { /*DEBUG TRACE*/}
 
   return p_items[index];
 }
@@ -396,14 +395,17 @@ inline vector<T> &vector<T>::operator=(const vector &&other) {
 // fuckass constructors that fucks with my fuckass mallocs and throws errors
 // everywhere
 
-template <> vector<std::string>::~vector() { delete[] p_items; }
+template <> 
+vector<std::string>::~vector() { delete[] p_items; }
 
-template <> void vector<std::string>::pop_back() {
+template <> 
+void vector<std::string>::pop_back() {
   if (size > 0)
     size--;
 }
 
-template <> void vector<std::string>::resize(uint32_t newCapacity) {
+template <>
+void vector<std::string>::resize(uint32_t newCapacity) {
   std::string *p_newMem = new std::string[newCapacity];
 
   for (uint32_t i = 0; i < size; ++i)
@@ -464,10 +466,11 @@ template <> void vector<std::string>::resize(uint32_t newCapacity) {
 
 static const uint32_t s_default_list_size{100};
 
-template <typename T> struct list_node {
-  T value{};
-  list_node *p_next{nullptr};
-  list_node *p_previous{nullptr};
+template <typename T> 
+struct list_node {
+  T value   {};
+  list_node *p_next     {nullptr};
+  list_node *p_previous {nullptr};
 
   /*
    * 8 bit mask that represets:
@@ -481,27 +484,27 @@ template <typename T> struct list_node {
    *  [7] ->
    *
    */
-  uint8_t state_mask{0};
+  uint8_t state_mask  {0};
 
   // Default Constructor
   list_node(T _value) { value = _value; }
 
   list_node(T _value, list_node *next) {
-    value = _value;
-    p_next = next;
+    value       = _value;
+    p_next      = next;
     state_mask |= (1);
   }
 
   list_node(T _value, list_node *previous, list_node *next) {
-    value = _value;
+    value      = _value;
     p_previous = previous;
-    p_next = next;
+    p_next     = next;
     state_mask |= (1);
     state_mask |= (1 << 1);
   }
 
   // shifts the value 8 bits to get the correct bit
-  inline bool hasNext() { return state_mask & (1); }
+  inline bool hasNext()     { return state_mask & (1); }
   inline bool hasPrevious() { return state_mask & (1 << 1); }
 };
 
@@ -510,10 +513,10 @@ template <typename T> struct flat_list {
   // Members
 
   vector<list_node<T>> p_nodeList{};
-  list_node<T> *p_root{};
+  list_node<T>         *p_root{};
 
-  uint32_t size{0};
-  uint32_t capacity{0};
+  uint32_t size     {0};
+  uint32_t capacity {0};
 
   // Iterators
 
@@ -521,9 +524,9 @@ template <typename T> struct flat_list {
   typedef const T *const_iterator;
 
   inline iterator begin() { return &p_nodeList[0]; }
-  inline iterator end() { return &p_nodeList[p_nodeList.size]; }
+  inline iterator end()   { return &p_nodeList[p_nodeList.size]; }
   inline const_iterator begin() const { return &p_nodeList[0]; }
-  inline const_iterator end() const { return &p_nodeList[p_nodeList.size]; }
+  inline const_iterator end()   const { return &p_nodeList[p_nodeList.size]; }
 
   // Constructors / destructor
   flat_list();
@@ -564,7 +567,7 @@ template <typename T> void flat_list<T>::add(list_node<T> node) {}
 
 /***
  *
- *  FRT (Fast Retrieve & Traverse) tree is a tree like structure designed for UI
+ *  FRT (Fast Retrieve & Traverse) Tree is a tree like structure designed for UI
  *
  *
  *
@@ -649,4 +652,6 @@ template <typename T> tree_node<T> &frt_tree<T>::retrieveNode(/* ID */) {}
 
 } // namespace Memory::Containers
 
-namespace Memory::Arenas {} // namespace Memory::Arenas
+namespace Memory::Arenas {
+
+} // namespace Memory::Arenas
