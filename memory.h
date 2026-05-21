@@ -117,21 +117,16 @@ inline stack_array<T, N> & stack_array<T, N>::operator=(const stack_array &other
  *        <s_default_vector_size> elements into the vector
  *           ej.. vector<int> default_vec {};
  *
- *        2. Calling the constructor and specifying the number of elements that
-needs allocation.
+ *        2. Calling the constructor and specifying the number of elements that needs allocation.
  *           ej.. vector<int> custom_vec {10}; <-- this allocates 10 ints;
  *
  *    ->  To push an item into the array, there are two ways:
- *        1. By calling the push_back() function, witchs moves (if posible) the
-element into the
+ *        1. By calling the push_back() function, witchs moves (if posible) the element into the
  *           next position of the array.
  *
- *        2. By calling the emplace_back() function, witchs creates the object
-inside the desired
- *           position of the vector, thus avoiding an extra construction and
-posible memory allocation.
- *           To call this function, you need to give to the function the
-parameters required to
+ *        2. By calling the emplace_back() function, witchs creates the object inside the desired
+ *           position of the vector, thus avoiding an extra construction and posible memory allocation.
+ *           To call this function, you need to give to the function the parameters required to
  *           create that structure.
  *           ej..
  *
@@ -149,16 +144,13 @@ parameters required to
  *                vector<int&float> newVec {}
  *
  *                // push_back
- *                newVec.push_back(int&float(1, 0.0f)) <-- creates the object
-and then moves it to the vector
+ *                newVec.push_back(int&float(1, 0.0f)) <-- creates the object and then moves it to the vector
  *
  *               // emplace_back
- *                newVec.emplace_back(1, 0.0f);        <-- passes the argument
-to the vector directly
+ *                newVec.emplace_back(1, 0.0f);        <-- passes the argument to the vector directly
  *            }
  *
- *    ->  By default, the vector grows half its size each time it needs to
-resize, this can be changed
+ *    ->  By default, the vector grows half its size each time it needs to resize, this can be changed
  *        by calling the function change_growth_ratio(float newRatio).
  *
  *  TODO:
@@ -166,7 +158,7 @@ resize, this can be changed
  *  - implementation of policies for srinking and growing
  *  - fix the fuckass std::string implementation god I hate that shit dude
  *  - optimize for small vectors -> up to a certain threshold allocate on the
- * stack
+ *    stack
  *
  */
 
@@ -460,8 +452,8 @@ void vector<std::string>::resize(uint32_t newCapacity) {
  * addition of a new node would be O(n) DUMBASSS
  *
  * TODO:
- *  - Implementation of all the methods and connstructors
- *
+ *  - Implementation of an iterator 
+ *  - Implementation of unused bit for fast check of used nodes
  */
 
 static const uint32_t s_default_list_size{100};
@@ -509,8 +501,8 @@ template <typename T> struct list_node {
   // shifts the value 8 bits to get the correct bit
   inline bool has_next()     { return state_mask & (1); }
   inline bool has_previous() { return state_mask & (1 << 1); }
-  inline void set_next(bool state)     { (state == true) ? state_mask |= (1)      : state_mask ^= (1); }
-  inline void set_previous(bool state) { (state == true) ? state_mask |= (1 << 1) : state_mask ^= (1 << 1); }
+  inline void set_next(bool state)     { (state == true) ? state_mask |= (1)      : state_mask &= ~(1); }
+  inline void set_previous(bool state) { (state == true) ? state_mask |= (1 << 1) : state_mask &= ~(1 << 1); }
 
 };
 
@@ -584,7 +576,7 @@ flat_list<T>::flat_list(uint32_t item_count) {
 
 /***
  *  flat_list<T>::add(T &val) takes a reference from the object that we want to add and 
- *  stores it in the buffer. 
+ *  stores it in the buffer.
  *
  *  It works this way:
  *
@@ -616,25 +608,31 @@ uint32_t flat_list<T>::add(T &val) {
   // if a free node is available we reuse it
   if(!freeNodes.is_empty()){
 
-    newSlot_index = freeNodes[freeNodes.top()];
+    newSlot_index = freeNodes[freeNodes.top()]; // get index from the top of the buffer
 
-    list_node<T> &newNode = bufferList[newSlot_index]; // Get buffer slot from index inside the freeNodes list 
+    // Configure new node to be the top of the list
+    list_node<T> &newNode = bufferList[newSlot_index];
     newNode.value = val;
     newNode.previous = i_top;
     newNode.next  = 0;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
     newNode.set_previous(true);
 
+    // Configure previous top of the list to link to the new top
+    list_node<T> &top_node = retrieve_node(i_top);
+    top_node.next = newSlot_index;
+    top_node.set_next(true);
+
     i_top = newSlot_index;   // update top node
 
-    bufferList.pop_back();
+    freeNodes.pop_back();
     m_size++;
     return newSlot_index;
 
   }
 
   // first element case
-  if (is_empty()) { 
+  if (is_empty()) {
 
     bufferList.emplace_back(std::forward<T>(val));
     newSlot_index = bufferList.top();
@@ -647,7 +645,7 @@ uint32_t flat_list<T>::add(T &val) {
   }
   else {
  
-    bufferList.emplace_back(std::forward<T>(val), i_top); // emplace new node into the buffer 
+    bufferList.emplace_back(std::forward<T>(val), i_top); // emplace new node into the buffer
     newSlot_index = bufferList.top();
 
     list_node<T>& topNode = retrieve_node(i_top);
@@ -658,28 +656,37 @@ uint32_t flat_list<T>::add(T &val) {
 
     m_size++;
   }
+
+  return newSlot_index;
 }
 
-template <typename T> 
+template <typename T>
 uint32_t flat_list<T>::add(T &&val){
 
   uint32_t newSlot_index {0};
 
   // if a free node is available we reuse it
   if(!freeNodes.is_empty()){
-    newSlot_index = freeNodes[freeNodes.top()];
-
-    list_node<T> &newNode = bufferList[newSlot_index]; // Get buffer slot from index inside the freeNodes list 
-    newNode.value = val;
+    newSlot_index = freeNodes[freeNodes.top()]; // get index from the top of the buffer
+    
+    // Configure new node to be the top of the list
+    list_node<T> &newNode = bufferList[newSlot_index];
+    newNode.value = std::move(val);
     newNode.previous = i_top;
     newNode.next  = 0;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
     newNode.set_previous(true);
 
+    // Configure previous top of the list to link to the new top
+    list_node<T> &top_node = retrieve_node(i_top);
+    top_node.next = newSlot_index;
+    top_node.set_next(true);
+
     i_top = newSlot_index;   // update top node
 
-    bufferList.pop_back();
+    freeNodes.pop_back();
     m_size++;
+
     return newSlot_index;
   }
 
@@ -696,7 +703,7 @@ uint32_t flat_list<T>::add(T &&val){
   }
   else {
  
-    bufferList.emplace_back(std::forward<T>(val), i_top); // emplace new node into the buffer 
+    bufferList.emplace_back(std::forward<T>(val), i_top); // emplace new node into the buffer
     newSlot_index = bufferList.top();
 
     list_node<T>& topNode = retrieve_node(i_top);
@@ -776,7 +783,7 @@ void flat_list<T>::remove_top()
   list_node<T> &prev_node = retrieve_node(victim.previous);
   prev_node.next = 0;
   prev_node.set_next(false);
-  
+
   freeNodes.push_back(i_top);
   i_top = victim.previous;
 
@@ -784,8 +791,23 @@ void flat_list<T>::remove_top()
 }
 
 template <typename T>
+void flat_list<T>::clear()
+{
+  bufferList.clear();
+  freeNodes.clear();
+  m_size = 0;
+  i_root = 0;
+  i_top  = 0;
+}
+
+
+template <typename T>
 list_node<T>& flat_list<T>::retrieve_node(uint32_t index) {
-  if (index < 0 || index > bufferList.size) { std::cout << "invalid index" << std::endl;/* ASSERT */ } 
+  if (index < 0 || index > bufferList.size) { std::cout << "invalid index" << std::endl;/* ASSERT */ }
+
+  // if node is not being used throw debug trace, but not in release
+  // DEBUG_TRACE (if (bufferList[index].maskbit & 8 == true)
+
   return bufferList[index];
 }
 

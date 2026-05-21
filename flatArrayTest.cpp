@@ -1,4 +1,5 @@
 #include "memory.h"
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -64,10 +65,11 @@ void transverseList(Memory::Containers::flat_list<uint32_t> &list)
 
 void transverseList(Memory::Containers::flat_list<Personaje> &list)
 {
+  if (list.is_empty()) {return;}
   Memory::Containers::list_node<Personaje> node = list.get_root();
 
   printf("nombre:  %s, vida: %d,  posición {%f, %f, %f} \n",node.value.name.c_str(), node.value.vida, node.value.position[0], node.value.position[1], node.value.position[2]);
-  printf("current index: %d next: %d prev: %d has_next: %b has_prev: %b\n ---------------- \n",0, node.next, node.previous, node.has_next(), node.has_previous());
+  printf("current index: %d next: %d prev: %d has_next: %b has_prev: %b\n ---------------- \n",list.i_root, node.next, node.previous, node.has_next(), node.has_previous());
   do
   { 
     uint32_t new_index = node.next;
@@ -88,36 +90,72 @@ int main (int argc, char *argv[]) {
   { 
     for(int i = 0; i < MAX_REPS; ++i)
     {
-
-      //float position[3] = {0.0,1.0,1.1};
-      //Personaje pablo {"pablo", 10, position};
-      //deafultList.add(pablo);
       deafultList.add({"pablo", 10, {0.0,1.0,1.1}});
     }
  
     printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
     transverseList(deafultList);
 
-    printf("REMOVED 1 NODE \n------------------\n");
     deafultList.remove(5);
+    printf("REMOVED 5 NODE \n------------------\n");
     transverseList(deafultList);
     printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
 
-    printf("REMOVED 1 NODE \n------------------\n");
     deafultList.remove(9);
+    printf("REMOVED 9 NODE \n------------------\n");
     transverseList(deafultList);
     printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
 
     deafultList.remove_top();
+    printf("REMOVED 8 NODE \n------------------\n");
+    transverseList(deafultList);
+    printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
+  
+    deafultList.add({"luisa", 2, {1.0,2.2, 10.0}}); 
+    printf("ADDED A NODE \n------------------\n");
     transverseList(deafultList);
     printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
 
-    deafultList.remove(0);
+    deafultList.remove(2);
+    printf("REMOVED 2 NODE \n------------------\n");
     transverseList(deafultList);
     printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
+
+    deafultList.remove(1);
+    printf("REMOVED 1 NODE \n------------------\n");
+    transverseList(deafultList);
+    printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
+
+    deafultList.add({"paco", 33, {1.0,2.2, 10.0}}); 
+    printf("ADDED A NODE \n------------------\n");
+    transverseList(deafultList);
+    printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
+
+    Personaje pepa {"pepa", 100, {1.1, 23.3, 102}};
+    //deafultList.add({"pepa", 100, {1.1, 23.3, 102}});
+    deafultList.add(pepa);
+    transverseList(deafultList);
+    printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
+
+    pepa.name = "martina";
+
+    transverseList(deafultList);
   }
 
+  deafultList.remove(0);
+  transverseList(deafultList);
+  printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
 
+  deafultList.clear();
+  printf("\nCLEAR\n_____________________________________________\n\n");
+  deafultList.add({"pablo", 10, {0.0,1.0,1.1}});
+  deafultList.add({"pablo", 10, {0.0,1.0,1.1}});
+  deafultList.add({"pablo", 10, {0.0,1.0,1.1}});
+  transverseList(deafultList);
+  printf("root index: %d top index: %d\n", deafultList.i_root, deafultList.i_top);
+  
+  deafultList.clear();
+  transverseList(deafultList);
 
   /*
   float position[3] = {0.0,1.0,1.1};
