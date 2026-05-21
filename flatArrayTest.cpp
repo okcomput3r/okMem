@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <string>
 
+#define MAX_REPS 10
 struct s_personaje
 {
   std::string name;
@@ -81,9 +82,8 @@ void transverseList(Memory::Containers::flat_list<Personaje> &list)
   while (node.has_next());
 }
 
-
-#define MAX_REPS 10
-int main (int argc, char *argv[]) {
+void test1()
+{
 
   Memory::Containers::flat_list<Personaje> deafultList {};
  
@@ -156,15 +156,36 @@ int main (int argc, char *argv[]) {
   
   deafultList.clear();
   transverseList(deafultList);
+}
 
-  /*
-  float position[3] = {0.0,1.0,1.1};
-  Memory::Containers::vector<Personaje> defaultVector {};
+void test2()
+{
+  Memory::Containers::flat_list<Personaje> defaultlist {};
 
-  //Personaje nuevo_pers {"paco", 100, position};
-  //defaultVector.push_back(nuevo_pers);
-  //defaultVector.push_back({"pedro", 100, position});
-  defaultVector.emplace_back("pilar", 20, position);
-  */ 
+  for (int i = 0; i < MAX_REPS; ++i)
+  {
+    defaultlist.add({"a", 10, {1,1,1}});
+  }
+
+  transverseList(defaultlist);
+
+  for (int i = 0; i < MAX_REPS; ++i)
+  {
+    defaultlist.remove_top();
+  }
+  printf("\n ---------------------------- \n");
+  for (int i = 0; i < MAX_REPS/2; ++i)
+  {
+    defaultlist.add({"b", 1, {2,2,2}});
+  }
+  transverseList(defaultlist);
+}
+
+
+int main (int argc, char *argv[]) {
+
+  //test1();
+  test2();
+
   return 0;
 }
