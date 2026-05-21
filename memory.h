@@ -454,6 +454,7 @@ void vector<std::string>::resize(uint32_t newCapacity) {
  * TODO:
  *  - Implementation of an iterator 
  *  - Implementation of unused bit for fast check of used nodes
+ *  
  */
 
 static const uint32_t s_default_list_size{100};
@@ -525,19 +526,27 @@ template <typename T> struct flat_list {
   //inline iterator end()   { return &p_nodeList[p_nodeList.size]; }
   //inline const_iterator begin() const { return &p_nodeList[0]; }
   //inline const_iterator end()   const { return &p_nodeList[p_nodeList.size]; }
+  
+
 
   // Constructors / destructor
 
   flat_list();
   flat_list(uint32_t item_count);
+  flat_list(flat_list  &other);  // TODO
+  flat_list(flat_list &&other);  // TODO
 
   ~flat_list() = default;
 
+  // Overloaded operators
+  inline flat_list &operator=(const flat_list &other); // TODO
+  inline flat_list &operator=(const flat_list &&other);// TODO
+ 
   // Methods
 
   uint32_t add(T  &value);
   uint32_t add(T &&value);
-  void add(list_node<T> &node);
+  //void add(list_node<T> &node);
 
   //void remove(const T &value);
   void remove(uint32_t index);
@@ -613,10 +622,16 @@ uint32_t flat_list<T>::add(T &val) {
     // Configure new node to be the top of the list
     list_node<T> &newNode = bufferList[newSlot_index];
     newNode.value = val;
-    newNode.previous = i_top;
+    if(is_empty()){
+      newNode.previous = 0;
+      newNode.set_previous(false);
+    }
+    else{
+      newNode.previous = i_top;
+      newNode.set_previous(true);
+    }
     newNode.next  = 0;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
-    newNode.set_previous(true);
 
     // Configure previous top of the list to link to the new top
     list_node<T> &top_node = retrieve_node(i_top);
@@ -668,14 +683,22 @@ uint32_t flat_list<T>::add(T &&val){
   // if a free node is available we reuse it
   if(!freeNodes.is_empty()){
     newSlot_index = freeNodes[freeNodes.top()]; // get index from the top of the buffer
-    
+ 
     // Configure new node to be the top of the list
     list_node<T> &newNode = bufferList[newSlot_index];
     newNode.value = std::move(val);
-    newNode.previous = i_top;
+
+    // if buffer is empty then the new node has no previous
+    if(is_empty()){
+      newNode.previous = 0;
+      newNode.set_previous(false);
+    }
+    else{
+      newNode.previous = i_top;
+      newNode.set_previous(true);
+    }
     newNode.next  = 0;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
-    newNode.set_previous(true);
 
     // Configure previous top of the list to link to the new top
     list_node<T> &top_node = retrieve_node(i_top);
@@ -818,6 +841,10 @@ list_node<T>& flat_list<T>::get_root()
 }
 
 // end of MEMORY::CONTAINERS::flat_list<>
+
+
+
+
 
 //  ________________________________________________________________________________
 // /--------------------------------------------------------------------------------\

@@ -176,7 +176,8 @@ void test2()
   printf("\n ---------------------------- \n");
   for (int i = 0; i < MAX_REPS/2; ++i)
   {
-    defaultlist.add({"b", 1, {2,2,2}});
+    Personaje pers{"b", 1, {2,2,2}};
+    defaultlist.add(pers);
   }
   transverseList(defaultlist);
 }
