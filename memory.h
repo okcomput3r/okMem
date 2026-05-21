@@ -217,7 +217,7 @@ template <typename T> struct vector {
   void resize(uint32_t newCapacity);
   inline void change_growth_ratio(float newRatio) { growth_ratio = newRatio; }
   inline bool is_empty() { return size == 0; } // returns size of the vector 
-  inline uint32_t top() { return size-1;}      // returns the position of the last element in the vector 
+  inline uint32_t top() { return size == 0 ? 0 : size-1;}      // returns the position of the last element in the vector 
 };
 
 //////////////////////////////
@@ -468,14 +468,14 @@ static const uint32_t s_default_list_size{100};
 static const uint32_t s_default_freeSlots_size{10};
 
 template <typename T> struct list_node {
-  
-  T value           { };
-  
+ 
+  T value;
+
   /*
    * 8 bit mask that represets:
    *  [0] -> hasNext
    *  [1] -> hasPrevious
-   *  [2] -> free
+   *  [2] -> unused
    *  [3] -> free
    *  [4] -> free
    *  [5] -> free
@@ -484,35 +484,33 @@ template <typename T> struct list_node {
    *
    */
   uint8_t state_mask {0};
-  
+ 
   uint32_t next      {0};
   uint32_t previous  {0};
 
-  
   // Default Constructor
-  list_node(T &_value) { value = _value; }
-  
-  list_node(T &_value, uint32_t &_previous) {
-    value      = _value;
-    previous   = _previous;
-    state_mask |= (1 << 1);
-  }
-  
+  list_node(T &_value) : value (_value)            {}
+  list_node(T &&_value): value (std::move(_value)) {}
 
-  list_node(T &_value, uint32_t &_previous, uint32_t &_next) {
-    value      = _value;
-    previous   = _previous;
-    next       = _next;
-    state_mask |= (1);
-    state_mask |= (1 << 1);
+  list_node(T &_value, uint32_t &_previous) 
+    : value (_value),state_mask ((1 << 1) | (1 << 2)), previous (_previous) {}
+
+  list_node(T &&_value, uint32_t &_previous) 
+    : value (std::move(_value)), state_mask ((1 << 1) | (1 << 2)) , previous (_previous) {}
+
+  list_node(T &_value, uint32_t &_previous, uint32_t &_next)
+    : value (_value), next (_next), previous (_previous){
+
+    state_mask = (1) | (1 << 1) | (1 << 2);
   }
 
+  ~list_node() = default;
 
   // shifts the value 8 bits to get the correct bit
   inline bool has_next()     { return state_mask & (1); }
   inline bool has_previous() { return state_mask & (1 << 1); }
-  inline void set_next(bool state)     { state == true ? state_mask |= (1) : state_mask |= (0);}
-  inline void set_previous(bool state) { state == true ? state_mask |= (1 << 1) : state_mask |= (0 << 1); }
+  inline void set_next(bool state)     { (state == true) ? state_mask |= (1)      : state_mask ^= (1); }
+  inline void set_previous(bool state) { (state == true) ? state_mask |= (1 << 1) : state_mask ^= (1 << 1); }
 
 };
 
@@ -545,14 +543,16 @@ template <typename T> struct flat_list {
 
   // Methods
 
-  void add(T  &value);
-  void add(T &&value);
+  uint32_t add(T  &value);
+  uint32_t add(T &&value);
   void add(list_node<T> &node);
-  
-  T remove(T value);
-  
+
+  //void remove(const T &value);
+  void remove(uint32_t index);
+  void remove_top();
+
   void clear();
-  
+
   list_node<T>& retrieve_node(uint32_t index);
   list_node<T>& get_root();
 
@@ -582,98 +582,210 @@ flat_list<T>::flat_list(uint32_t item_count) {
 
 }
 
+/***
+ *  flat_list<T>::add(T &val) takes a reference from the object that we want to add and 
+ *  stores it in the buffer. 
+ *
+ *  It works this way:
+ *
+ *  1. Checks if a free node is available, and if so, it reuses the slot. Later it returns.
+ *
+ *  2. If no free nodes are available,  then it checks if the list is empty, if so then it 
+ *     emplace the new item into the buffer and sets it as the root node (for later transversal)
+ *     and as the top node (for later fast insertions)
+ *
+ *  3. If the list is not empty, then the new item is pushed into the buffer, and the pointers 
+ *     get updated. the new node is now the top node, and the previous top node now points to 
+ *     this one. Furthermore, the new node points back to the previous top node, given that it
+ *     is a double linked list.
+ *
+ *  Returns:
+ *     this function returns a handler to the value added to the list.
+ *
+ *  NOTES:
+ *    - There is another add() method that takes a temporal (&&) object instead of an already 
+ *      constructed object, reducing the ammount of constructions that are taking place.
+ *
+ */
+
 template <typename T> 
-void flat_list<T>::add(T &val) {
-  
+uint32_t flat_list<T>::add(T &val) {
+
+  uint32_t newSlot_index {0};
+
   // if a free node is available we reuse it
   if(!freeNodes.is_empty()){
 
-    list_node<T> &newNode = bufferList[freeNodes[freeNodes.size]]; // Get buffer slot from index inside the freeNodes list 
+    newSlot_index = freeNodes[freeNodes.top()];
+
+    list_node<T> &newNode = bufferList[newSlot_index]; // Get buffer slot from index inside the freeNodes list 
     newNode.value = val;
     newNode.previous = i_top;
     newNode.next  = 0;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
     newNode.set_previous(true);
 
-    i_top = freeNodes.size;   // update top node
-    
+    i_top = newSlot_index;   // update top node
+
     bufferList.pop_back();
     m_size++;
-    return;
+    return newSlot_index;
+
   }
 
   // first element case
-  if (is_empty()) {
-    
-    bufferList.emplace_back(val); 
-    //bufferList[bufferList.size] = list_node {val}; // bufferList.size is supposed to be 0 because the buffer is empty
-    std::cout << "new node in position: " << bufferList.size << "with value: " << val <<std::endl;
-    i_root = bufferList.size;
-    i_top  = bufferList.size;
+  if (is_empty()) { 
+
+    bufferList.emplace_back(std::forward<T>(val));
+    newSlot_index = bufferList.top();
+
+    i_root = newSlot_index;
+    i_top  = newSlot_index;
+
     m_size++;
+
   }
   else {
-
-    bufferList.emplace_back(val, i_top); // emplace new node into the buffer
+ 
+    bufferList.emplace_back(std::forward<T>(val), i_top); // emplace new node into the buffer 
+    newSlot_index = bufferList.top();
 
     list_node<T>& topNode = retrieve_node(i_top);
-    topNode.next = bufferList.size;
+    topNode.next = newSlot_index;
     topNode.set_next(true);
-    
-    i_top = bufferList.size;
+
+    i_top = newSlot_index; // update top index
+
     m_size++;
   }
-  
 }
 
 template <typename T> 
-void flat_list<T>::add(T &&val){
+uint32_t flat_list<T>::add(T &&val){
+
+  uint32_t newSlot_index {0};
 
   // if a free node is available we reuse it
   if(!freeNodes.is_empty()){
+    newSlot_index = freeNodes[freeNodes.top()];
 
-    list_node<T> &newNode = bufferList[freeNodes[freeNodes.size]]; // Get buffer slot from index inside the freeNodes list 
+    list_node<T> &newNode = bufferList[newSlot_index]; // Get buffer slot from index inside the freeNodes list 
     newNode.value = val;
     newNode.previous = i_top;
     newNode.next  = 0;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
     newNode.set_previous(true);
 
-    i_top = freeNodes.size;   // update top node
-    
+    i_top = newSlot_index;   // update top node
+
     bufferList.pop_back();
     m_size++;
-    return;
+    return newSlot_index;
   }
 
   // first element case
   if (is_empty()) {
-    
-    bufferList.emplace_back(val);
-    i_root = bufferList.top();
-    i_top  = bufferList.top();
+
+    bufferList.emplace_back(std::forward<T>(val));
+    newSlot_index = bufferList.top();
+
+    i_root = newSlot_index;
+    i_top  = newSlot_index;
 
     m_size++;
   }
   else {
  
-    bufferList.emplace_back(val, i_top); // emplace new node into the buffer 
-    
+    bufferList.emplace_back(std::forward<T>(val), i_top); // emplace new node into the buffer 
+    newSlot_index = bufferList.top();
+
     list_node<T>& topNode = retrieve_node(i_top);
-    topNode.next = bufferList.top(); 
+    topNode.next = newSlot_index;
     topNode.set_next(true);
-    i_top = bufferList.top();
+
+    i_top = newSlot_index; // update top index
 
     m_size++;
   }
+
+  return newSlot_index;
+}
+
+/***
+ *
+ *  flat_list<T>::remove(uint32_t) allows for fast removal of a node from the buffer.
+ *
+ *  It works this way:
+ *
+ *  1. First it checks if the buffer is empty, if not it retrieves a reference to the node in the index
+ *     specified.
+ *
+ *  2. If the index is valid then the deleted node is unlinked from the rest of the buffer so the linked 
+ *     list is preserved intact. After the node is unlinked from the list it should not be accessible 
+ *     anymore.
+ *
+ *  3.
+ *     Then the deleted node is pushed into the freeNode buffer, and the size of the list buffer is 
+ *     decremented.
+ *
+ */
+template <typename T>
+void flat_list<T>::remove(uint32_t index){
+  if (is_empty()) { return; }
+
+  list_node<T> &victim = retrieve_node(index);
+ 
+  //unlink the nodes 
+ 
+  if(victim.has_next()) {
+    if(victim.has_previous()) // next & previous
+    {
+      retrieve_node(victim.previous).next  = victim.next;
+      retrieve_node(victim.next).previous = victim.previous;
+    }
+    else // next & NO previous
+    {
+      list_node<T> &next_node = retrieve_node(victim.next);
+      next_node.previous = 0;
+      next_node.set_previous(false);
+      i_root = victim.next;
+    }
+  }
+  else if (victim.has_previous()){ // NO next & previous
+      list_node<T> &prev_node = retrieve_node(victim.previous);
+
+      prev_node.next = 0;
+      prev_node.set_next(false);
+      i_top = victim.previous;
+  }
+  else { // NO next & NO previous 
+    // nothing
+  }
+  // end unlinking nodes
+
+  freeNodes.push_back(index);
+  m_size--;
 }
 
 template <typename T>
-void flat_list<T>::add(list_node<T> &node) {}
+void flat_list<T>::remove_top()
+{
+  if (is_empty()) { return; }
+
+  list_node<T> &victim = retrieve_node(i_top);
+  list_node<T> &prev_node = retrieve_node(victim.previous);
+  prev_node.next = 0;
+  prev_node.set_next(false);
+  
+  freeNodes.push_back(i_top);
+  i_top = victim.previous;
+
+  m_size--;
+}
 
 template <typename T>
 list_node<T>& flat_list<T>::retrieve_node(uint32_t index) {
-  if (index < 0 || index > bufferList.size) { /* ASSERT */ } 
+  if (index < 0 || index > bufferList.size) { std::cout << "invalid index" << std::endl;/* ASSERT */ } 
   return bufferList[index];
 }
 
