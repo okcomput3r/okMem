@@ -452,10 +452,12 @@ void vector<std::string>::resize(uint32_t newCapacity) {
  * addition of a new node would be O(n) DUMBASSS
  *
  * TODO:
- *  - Implementation of an iterator 
+ *  - Implementation of an range based iterator
  *  - Implementation of unused bit for fast check of used nodes
  *  
  */
+
+#define INVALID_INDEX 0xFFFFFFFF
 
 static const uint32_t s_default_list_size{100};
 static const uint32_t s_default_freeSlots_size{10};
@@ -478,8 +480,8 @@ template <typename T> struct list_node {
    */
   uint8_t state_mask {0};
  
-  uint32_t next      {0};
-  uint32_t previous  {0};
+  uint32_t next      {INVALID_INDEX};
+  uint32_t previous  {INVALID_INDEX};
 
   // Default Constructor
   list_node(T &_value) : value (_value)            {}
@@ -507,26 +509,91 @@ template <typename T> struct list_node {
 
 };
 
+template<typename T> struct flatList_Iterator{
+ 
+  typedef T value_type;
+  
+  list_node<value_type> *m_base;
+  list_node<value_type> *m_rf;
+
+  flatList_Iterator () {}
+
+  flatList_Iterator (list_node<value_type> *ptr)
+    : m_base(ptr) , m_rf(ptr) { }
+
+  flatList_Iterator (list_node<value_type> *base, list_node<value_type> *node)
+    : m_base(base) , m_rf(node) {
+
+      //std::cout << "INDEX: " << m_rf - m_base << std::endl;
+    }
+
+  flatList_Iterator  operator++(int) {
+ 
+    std::cout << "current index:  "<< m_rf - m_base <<" next Index: " << m_rf->next << std::endl;
+    flatList_Iterator tmp = *this;
+    m_rf = static_cast<list_node<value_type>*>(m_base + m_rf->next);
+
+
+    return tmp;
+  }
+  flatList_Iterator& operator++() {
+
+    std::cout << "current index:  "<< m_rf - m_base <<" next Index: " << m_rf->next << std::endl;
+    m_rf = static_cast<list_node<value_type>*>(m_base + m_rf->next);
+    return *this;
+  }
+
+  flatList_Iterator operator--(int) {
+
+    flatList_Iterator tmp = *this;
+    m_rf = static_cast<list_node<value_type>*>(m_base + m_rf->previous);
+    
+    return tmp;
+  }
+ 
+  flatList_Iterator& operator--() {
+
+    m_rf = static_cast<list_node<value_type>*>(m_base + m_rf->previous);
+    return *this;
+  }
+
+  list_node<value_type>* operator->() {
+    return m_rf;
+  }
+ 
+  list_node<value_type>& operator*() {
+    return *m_rf;
+  }
+
+  bool operator!=(const flatList_Iterator &other) const {
+    return !(*this == other);
+  }
+
+  bool operator==(const flatList_Iterator &other) const {
+    return (m_rf == other.m_rf);
+  }
+
+}; // End of flat_list iterator
+
+
 template <typename T> struct flat_list {
 
+ 
   // Members
 
   vector<list_node<T>> bufferList {};
   vector<uint32_t>     freeNodes  {}; // buffer that contains all the indices of the available nodes
-  uint32_t i_root   {0};              // index of the first element in the list
-  uint32_t i_top    {0};              // index of the last element in the list
+  uint32_t i_root   {INVALID_INDEX};              // index of the first element in the list
+  uint32_t i_top    {INVALID_INDEX};              // index of the last element in the list
   uint32_t m_size   {0};              // ammount of active nodes 
  
   // Iterators
+ 
+  typedef T valueType;
+  typedef flatList_Iterator<T> iterator;
 
-  typedef T *iterator;
-  typedef const T *const_iterator;
-
-  //inline iterator begin() { return &p_nodeList[0]; }
-  //inline iterator end()   { return &p_nodeList[p_nodeList.size]; }
-  //inline const_iterator begin() const { return &p_nodeList[0]; }
-  //inline const_iterator end()   const { return &p_nodeList[p_nodeList.size]; }
-  
+  inline iterator begin() { return iterator { bufferList.p_items , bufferList.p_items + (i_root) }; }
+  inline iterator end()   { return iterator { bufferList.p_items , bufferList.p_items + INVALID_INDEX }; }
 
 
   // Constructors / destructor
@@ -541,7 +608,8 @@ template <typename T> struct flat_list {
   // Overloaded operators
   inline flat_list &operator=(const flat_list &other); // TODO
   inline flat_list &operator=(const flat_list &&other);// TODO
- 
+  inline flat_list &operator+=(const flat_list &other);// TODO
+  
   // Methods
 
   uint32_t add(T  &value);
@@ -555,10 +623,13 @@ template <typename T> struct flat_list {
   void clear();
 
   list_node<T>& retrieve_node(uint32_t index);
-  list_node<T>& get_root();
+  inline list_node<T>& get_root() { if (is_empty()) { /* TRACE */ } return retrieve_node(i_root); }
+  inline list_node<T>& get_top()  { if (is_empty()) { /* TRACE */ } return retrieve_node(i_top);  }
 
   inline const bool is_empty() { return m_size == 0; }
   inline const uint32_t size() { return m_size; }
+
+  
 };
 
 //////////////////////////////
@@ -570,7 +641,7 @@ flat_list<T>::flat_list() {
   
   bufferList.resize(s_default_list_size);
   freeNodes.resize(s_default_freeSlots_size);
-  m_size = 0; 
+  m_size = 0;
 
 }
 
@@ -623,14 +694,14 @@ uint32_t flat_list<T>::add(T &val) {
     list_node<T> &newNode = bufferList[newSlot_index];
     newNode.value = val;
     if(is_empty()){
-      newNode.previous = 0;
+      newNode.previous = INVALID_INDEX;
       newNode.set_previous(false);
     }
     else{
       newNode.previous = i_top;
       newNode.set_previous(true);
     }
-    newNode.next  = 0;
+    newNode.next  = INVALID_INDEX;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
 
     // Configure previous top of the list to link to the new top
@@ -678,7 +749,7 @@ uint32_t flat_list<T>::add(T &val) {
 template <typename T>
 uint32_t flat_list<T>::add(T &&val){
 
-  uint32_t newSlot_index {0};
+  uint32_t newSlot_index {INVALID_INDEX};
 
   // if a free node is available we reuse it
   if(!freeNodes.is_empty()){
@@ -690,14 +761,14 @@ uint32_t flat_list<T>::add(T &&val){
 
     // if buffer is empty then the new node has no previous
     if(is_empty()){
-      newNode.previous = 0;
+      newNode.previous = INVALID_INDEX;
       newNode.set_previous(false);
     }
     else{
       newNode.previous = i_top;
       newNode.set_previous(true);
     }
-    newNode.next  = 0;
+    newNode.next  = INVALID_INDEX;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
 
     // Configure previous top of the list to link to the new top
@@ -776,7 +847,7 @@ void flat_list<T>::remove(uint32_t index){
     else // next & NO previous
     {
       list_node<T> &next_node = retrieve_node(victim.next);
-      next_node.previous = 0;
+      next_node.previous = INVALID_INDEX;
       next_node.set_previous(false);
       i_root = victim.next;
     }
@@ -784,7 +855,7 @@ void flat_list<T>::remove(uint32_t index){
   else if (victim.has_previous()){ // NO next & previous
       list_node<T> &prev_node = retrieve_node(victim.previous);
 
-      prev_node.next = 0;
+      prev_node.next = INVALID_INDEX;
       prev_node.set_next(false);
       i_top = victim.previous;
   }
@@ -804,7 +875,7 @@ void flat_list<T>::remove_top()
 
   list_node<T> &victim = retrieve_node(i_top);
   list_node<T> &prev_node = retrieve_node(victim.previous);
-  prev_node.next = 0;
+  prev_node.next = INVALID_INDEX;
   prev_node.set_next(false);
 
   freeNodes.push_back(i_top);
@@ -819,8 +890,8 @@ void flat_list<T>::clear()
   bufferList.clear();
   freeNodes.clear();
   m_size = 0;
-  i_root = 0;
-  i_top  = 0;
+  i_root = INVALID_INDEX;
+  i_top  = INVALID_INDEX;
 }
 
 
@@ -834,11 +905,8 @@ list_node<T>& flat_list<T>::retrieve_node(uint32_t index) {
   return bufferList[index];
 }
 
-template <typename T>
-list_node<T>& flat_list<T>::get_root()
-{
-  return retrieve_node(i_root);
-}
+
+
 
 // end of MEMORY::CONTAINERS::flat_list<>
 

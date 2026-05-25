@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <list>
 #include <string>
 
 #define MAX_REPS 10
@@ -80,6 +81,7 @@ void transverseList(Memory::Containers::flat_list<Personaje> &list)
     printf("current index: %d next: %d prev: %d has_next: %b has_prev: %b\n ---------------- \n",new_index, node.next, node.previous, node.has_next(), node.has_previous());
   }
   while (node.has_next());
+  printf("root index: %d top index: %d\n", list.i_root, list.i_top);
 }
 
 void test1()
@@ -87,7 +89,7 @@ void test1()
 
   Memory::Containers::flat_list<Personaje> deafultList {};
  
-  { 
+  {
     for(int i = 0; i < MAX_REPS; ++i)
     {
       deafultList.add({"pablo", 10, {0.0,1.0,1.1}});
@@ -182,11 +184,60 @@ void test2()
   transverseList(defaultlist);
 }
 
+void test3()
+{
+
+  Memory::Containers::flat_list<Personaje> defaultlist {};
+
+  for (int i = 0; i < MAX_REPS; ++i)
+  {
+    defaultlist.add({"a", 10, {1,1,1}});
+  }
+  for (auto &pers : defaultlist)
+  { 
+    pers.value.name = "b";
+  }
+  
+  for (auto pers : defaultlist)
+  {
+    printf("%s\n", pers.value.name.c_str());
+  }
+
+  std::list<Personaje> new_list{};
+  new_list.push_back({"alo",10,{1,1,1}});
+
+  for(Personaje pers: new_list)
+  {
+    printf("%s", pers.name.c_str());
+  }
+
+}
+
+//std::list<typename Tp, typename Allocator>
+void test5()
+{
+
+  Memory::Containers::flat_list<Personaje> defaultlist {};
+
+  for (int i = 0; i < MAX_REPS; ++i)
+  {
+    defaultlist.add({"a", 10, {1,1,1}});
+  }
+
+#if 1
+  for (Memory::Containers::flat_list<Personaje>::iterator it = defaultlist.begin();
+      it != defaultlist.end(); it++)
+  { /*printf ("transversing");*/ }
+#else 
+  transverseList(defaultlist);
+#endif
+}
 
 int main (int argc, char *argv[]) {
 
   //test1();
-  test2();
-
+  //test2();
+  test3();
+  //test5();
   return 0;
 }
