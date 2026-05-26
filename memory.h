@@ -457,7 +457,7 @@ void vector<std::string>::resize(uint32_t newCapacity) {
  *  
  */
 
-#define INVALID_INDEX 0xFFFFFFFF
+#define FLATLIST_INVALID_INDEX 0xFFFFFFFF
 
 static const uint32_t s_default_list_size{100};
 static const uint32_t s_default_freeSlots_size{10};
@@ -480,8 +480,8 @@ template <typename T> struct list_node {
    */
   uint8_t state_mask {0};
  
-  uint32_t next      {INVALID_INDEX};
-  uint32_t previous  {INVALID_INDEX};
+  uint32_t next      {FLATLIST_INVALID_INDEX};
+  uint32_t previous  {FLATLIST_INVALID_INDEX};
 
   // Default Constructor
   list_node(T &_value) : value (_value)            {}
@@ -494,7 +494,8 @@ template <typename T> struct list_node {
     : value (std::move(_value)), state_mask ((1 << 1) | (1 << 2)) , previous (_previous) {}
 
   list_node(T &_value, uint32_t &_previous, uint32_t &_next)
-    : value (_value), next (_next), previous (_previous){
+    : value (_value), next (_next), previous (_previous)
+  {
 
     state_mask = (1) | (1 << 1) | (1 << 2);
   }
@@ -504,9 +505,10 @@ template <typename T> struct list_node {
   // shifts the value 8 bits to get the correct bit
   inline bool has_next()     { return state_mask & (1); }
   inline bool has_previous() { return state_mask & (1 << 1); }
-  inline void set_next(bool state)     { (state == true) ? state_mask |= (1)      : state_mask &= ~(1); }
-  inline void set_previous(bool state) { (state == true) ? state_mask |= (1 << 1) : state_mask &= ~(1 << 1); }
-
+  inline bool in_use()       { return state_mask & (1 << 2); }
+  inline void set_next     (bool state) { (state == true) ? state_mask |= (1)      : state_mask &= ~(1);      }
+  inline void set_previous (bool state) { (state == true) ? state_mask |= (1 << 1) : state_mask &= ~(1 << 1); }
+  inline void set_used     (bool state) { (state == true) ? state_mask |= (1 << 2) : state_mask &= ~(1 << 2); }
 };
 
 template<typename T> struct flatList_Iterator{
@@ -583,8 +585,8 @@ template <typename T> struct flat_list {
 
   vector<list_node<T>> bufferList {};
   vector<uint32_t>     freeNodes  {}; // buffer that contains all the indices of the available nodes
-  uint32_t i_root   {INVALID_INDEX};              // index of the first element in the list
-  uint32_t i_top    {INVALID_INDEX};              // index of the last element in the list
+  uint32_t i_root   {FLATLIST_INVALID_INDEX};              // index of the first element in the list
+  uint32_t i_top    {FLATLIST_INVALID_INDEX};              // index of the last element in the list
   uint32_t m_size   {0};              // ammount of active nodes 
  
   // Iterators
@@ -593,7 +595,7 @@ template <typename T> struct flat_list {
   typedef flatList_Iterator<T> iterator;
 
   inline iterator begin() { return iterator { bufferList.p_items , bufferList.p_items + (i_root) }; }
-  inline iterator end()   { return iterator { bufferList.p_items , bufferList.p_items + INVALID_INDEX }; }
+  inline iterator end()   { return iterator { bufferList.p_items , bufferList.p_items + FLATLIST_INVALID_INDEX }; }
 
 
   // Constructors / destructor
@@ -615,6 +617,11 @@ template <typename T> struct flat_list {
   uint32_t add(T  &value);
   uint32_t add(T &&value);
   //void add(list_node<T> &node);
+
+  uint32_t add_infront(T  &value); // TODO
+  uint32_t add_infront(T &&value); // TODO
+  uint32_t add_behind(T   &value); // TODO
+  uint32_t add_behind(T  &&value); // TODO
 
   //void remove(const T &value);
   void remove(uint32_t index);
@@ -694,14 +701,14 @@ uint32_t flat_list<T>::add(T &val) {
     list_node<T> &newNode = bufferList[newSlot_index];
     newNode.value = val;
     if(is_empty()){
-      newNode.previous = INVALID_INDEX;
+      newNode.previous = FLATLIST_INVALID_INDEX;
       newNode.set_previous(false);
     }
     else{
       newNode.previous = i_top;
       newNode.set_previous(true);
     }
-    newNode.next  = INVALID_INDEX;
+    newNode.next  = FLATLIST_INVALID_INDEX;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
 
     // Configure previous top of the list to link to the new top
@@ -749,7 +756,7 @@ uint32_t flat_list<T>::add(T &val) {
 template <typename T>
 uint32_t flat_list<T>::add(T &&val){
 
-  uint32_t newSlot_index {INVALID_INDEX};
+  uint32_t newSlot_index {FLATLIST_INVALID_INDEX};
 
   // if a free node is available we reuse it
   if(!freeNodes.is_empty()){
@@ -761,14 +768,14 @@ uint32_t flat_list<T>::add(T &&val){
 
     // if buffer is empty then the new node has no previous
     if(is_empty()){
-      newNode.previous = INVALID_INDEX;
+      newNode.previous = FLATLIST_INVALID_INDEX;
       newNode.set_previous(false);
     }
     else{
       newNode.previous = i_top;
       newNode.set_previous(true);
     }
-    newNode.next  = INVALID_INDEX;
+    newNode.next  = FLATLIST_INVALID_INDEX;
     newNode.set_next(false);  // set node bitmask to show that it has no next node
 
     // Configure previous top of the list to link to the new top
@@ -847,7 +854,7 @@ void flat_list<T>::remove(uint32_t index){
     else // next & NO previous
     {
       list_node<T> &next_node = retrieve_node(victim.next);
-      next_node.previous = INVALID_INDEX;
+      next_node.previous = FLATLIST_INVALID_INDEX;
       next_node.set_previous(false);
       i_root = victim.next;
     }
@@ -855,7 +862,7 @@ void flat_list<T>::remove(uint32_t index){
   else if (victim.has_previous()){ // NO next & previous
       list_node<T> &prev_node = retrieve_node(victim.previous);
 
-      prev_node.next = INVALID_INDEX;
+      prev_node.next = FLATLIST_INVALID_INDEX;
       prev_node.set_next(false);
       i_top = victim.previous;
   }
@@ -875,7 +882,7 @@ void flat_list<T>::remove_top()
 
   list_node<T> &victim = retrieve_node(i_top);
   list_node<T> &prev_node = retrieve_node(victim.previous);
-  prev_node.next = INVALID_INDEX;
+  prev_node.next = FLATLIST_INVALID_INDEX;
   prev_node.set_next(false);
 
   freeNodes.push_back(i_top);
@@ -890,8 +897,8 @@ void flat_list<T>::clear()
   bufferList.clear();
   freeNodes.clear();
   m_size = 0;
-  i_root = INVALID_INDEX;
-  i_top  = INVALID_INDEX;
+  i_root = FLATLIST_INVALID_INDEX;
+  i_top  = FLATLIST_INVALID_INDEX;
 }
 
 
