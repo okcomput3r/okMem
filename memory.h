@@ -505,8 +505,8 @@ template <typename T> struct list_node {
   // shifts the value 8 bits to get the correct bit
   inline bool has_next()     { return state_mask & (1); }
   inline bool has_previous() { return state_mask & (1 << 1); }
-  inline bool in_use()       { return state_mask & (1 << 2); }
-  inline void set_next     (bool state) { (state == true) ? state_mask |= (1)      : state_mask &= ~(1);      }
+  inline bool in_use(){}
+  inline void set_next     (bool state) { (state == true) ? state_mask |= (1)      : state_mask &= ~(1); }
   inline void set_previous (bool state) { (state == true) ? state_mask |= (1 << 1) : state_mask &= ~(1 << 1); }
   inline void set_used     (bool state) { (state == true) ? state_mask |= (1 << 2) : state_mask &= ~(1 << 2); }
 };
